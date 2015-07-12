@@ -9,6 +9,7 @@ package uk.co.umbaska;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.entity.Entity;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -27,8 +28,10 @@ import org.mcstats.Metrics;
 import uk.co.umbaska.Bungee.*;
 import uk.co.umbaska.Managers.Register;
 import uk.co.umbaska.ProtocolLib.*;
+import uk.co.umbaska.System.*;
 import uk.co.umbaska.Utils.Disguise.DisguiseHandler;
-import uk.co.umbaska.WildSkript.system.*;
+import uk.co.umbaska.Utils.FreezeListener;
+import uk.co.umbaska.Utils.ItemManager;
 
 import java.io.IOException;
 import java.util.logging.Logger;
@@ -36,6 +39,7 @@ import java.util.logging.Logger;
 public class Main extends JavaPlugin implements Listener {
 
     //public static HologramManager holoManager;
+    public static Entity armorStand;
     public static Plugin dynmap;
     public static DynmapAPI api;
     public static EntityHider enthider;
@@ -44,15 +48,23 @@ public class Main extends JavaPlugin implements Listener {
     public static Main plugin;
     public static Messenger messenger;
     private static WildSkriptTimer timer;
+    public static FreezeListener freezeListener;
+    public static ItemManager itemManager;
+    public static String schemFolder;
     @Override
     public void onEnable() {
         plugin = this;
-        try {
-            Metrics metrics = new Metrics(this);
-            metrics.start();
-            getLogger().info(ChatColor.GREEN + "[Umbaska] Hooked into metrics! :)");
-        } catch (IOException e) {
-            getLogger().info(ChatColor.DARK_RED + "[Umbaska] Failed to load metrics :(");
+        if (!getConfig().contains("Metrics")){
+            getConfig().set("Metrics", true);
+        }
+        if (getConfig().getBoolean("Metrics")) {
+            try {
+                Metrics metrics = new Metrics(this);
+                metrics.start();
+                getLogger().info(ChatColor.GREEN + "[Umbaska] Hooked into metrics! :)");
+            } catch (IOException e) {
+                getLogger().info(ChatColor.DARK_RED + "[Umbaska] Failed to load metrics :(");
+            }
         }
         final PluginManager pluginManager = getServer().getPluginManager();
         pluginManager.registerEvents(this, this);
@@ -61,8 +73,26 @@ public class Main extends JavaPlugin implements Listener {
             enthider = new EntityHider(Main.getInstance(), EntityHider.Policy.BLACKLIST);
         }
         disguiseHandler = new DisguiseHandler(this);
+        if (!getConfig().contains("force-generate-18-features")){
+            getConfig().set("force-generate-18-features", true);
+        }
+        if (!getConfig().contains("schematic_location")){
+            getConfig().set("schematic_location", "PLUGINFOLDER/schematics/ #Use PLUGINFOLDER to get Umbaska's folder. Otherwise, put in your own directory.");
+        }
+        timer = new WildSkriptTimer();
+        timer.run();
+        schemFolder = getConfig().getString("schematic_location").replace("PLUGINFOLDER", getDataFolder().getAbsolutePath());
+        saveDefaultConfig();
         Register.registerAll();
+        freezeListener = new FreezeListener(this);
+        itemManager = new ItemManager();
 
+
+    }
+    
+    public void onDisable() {
+    	plugin = null;
+    	inst = null;
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
